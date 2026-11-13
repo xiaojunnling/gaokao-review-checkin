@@ -1,13 +1,20 @@
-# 临时文件
+# 系统与编辑器
 *.log
 *.tmp
 Thumbs.db
 desktop.ini
 .DS_Store
+.idea/
+.vscode/
 
-# 依赖（本项目零依赖，防止以后误加）
+# 依赖（本项目零依赖，防止误加）
 node_modules/
 
-# WorkBuddy 发布工具生成，不进代码库
+# 本机专用文件，不随仓库发布
+启动.bat
+.local/
+*.zip
+
+# 本地工具生成的配置
 .wbapp_*.genie
 .workbuddy/

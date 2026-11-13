@@ -1,5 +1,5 @@
 /* 离线缓存：优先取网络（保证更新），断网时回落到缓存 */
-const CACHE = 'gk-review-v1';
+const CACHE = 'gk-review-v2';
 const PRECACHE = [
   './',
   './index.html',
@@ -7,9 +7,9 @@ const PRECACHE = [
   './app.js',
   './data.js',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-180.png'
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './assets/icons/icon-180.png'
 ];
 
 self.addEventListener('install', function (e) {
