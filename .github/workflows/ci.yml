@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 检查 JS 语法
+        run: |
+          node --check app.js
+          node --check data.js
+          node --check sw.js
+
+      - name: 检查 PWA 清单
+        run: node -e "const m=JSON.parse(require('fs').readFileSync('manifest.json','utf8')); if(!m.name||!m.icons||!m.icons.length) process.exit(1); console.log('manifest ok:', m.name)"
+
+      - name: 检查页面引用的文件都在
+        run: |
+          for f in index.html styles.css app.js data.js sw.js manifest.json icon.svg icon-180.png icon-192.png icon-512.png; do
+            test -f "$f" || { echo "缺少文件: $f"; exit 1; }
+          done
+          echo "引用文件齐全"
