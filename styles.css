@@ -545,7 +545,9 @@ body.noanim .page { animation: none; }
 /* ============ 响应式 ============ */
 @media (max-width: 980px) {
   body { overflow: hidden; }
-  .app { flex-direction: column; height: 100vh; }
+  /* iOS 聚焦输入框会自动放大页面，16px 可避免 */
+  .input, .select, .textarea, .search { font-size: 16px; }
+  .app { flex-direction: column; height: 100vh; height: 100dvh; }
   .side {
     width: 100%; flex: none; flex-direction: row; align-items: center;
     padding: 7px 8px; border-right: none; border-top: 1px solid var(--line);
@@ -568,8 +570,7 @@ body.noanim .page { animation: none; }
   .tt-col { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: start; }
   .tt-col .day-h { margin-bottom: 0; }
   .data-grid { grid-template-columns: 1fr; }
-  .bar-row { grid-template-columns: 74px 1fr 48px; gap: 8px; }
-  .total-bar { display: grid; grid-template-columns: auto 1fr; gap: 14px 16px; padding: 14px 16px; }
+  .bar-row { grid-template-columns: 74px 1fr 48px; gap: 8px; }  .total-bar { display: grid; grid-template-columns: auto 1fr; gap: 14px 16px; padding: 14px 16px; }
   .tb-ring { width: 66px; height: 66px; grid-row: span 1; }
   .tb-in { width: 52px; height: 52px; padding-top: 14px; font-size: 16px; }
   .tb-done { grid-column: 1 / -1; border-left: none; border-top: 1px solid var(--line2); padding: 8px 0 0; text-align: left; display: flex; align-items: baseline; gap: 8px; }
@@ -580,4 +581,8 @@ body.noanim .page { animation: none; }
   .toolbar .search { max-width: none; }
   .seg { overflow-x: auto; max-width: 100%; }
   .seg button { flex: none; }
+  /* 全面屏安全区（刘海 / 手势条） */
+  .side { padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)); }
+  .page-wrap { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { padding-top: env(safe-area-inset-top, 0px); height: calc(54px + env(safe-area-inset-top, 0px)); }
 }

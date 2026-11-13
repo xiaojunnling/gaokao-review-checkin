@@ -1136,6 +1136,12 @@ function toast(msg) {
 /* ---------- 初始化 ---------- */
 function init() {
   if ((location.search || '').indexOf('noanim') >= 0) document.body.classList.add('noanim');
+
+  // 装成应用后支持离线打开（file:// 下不注册）
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    navigator.serviceWorker.register('./sw.js').catch(function () { /* 离线能力不可用不影响主流程 */ });
+  }
+
   document.getElementById('mask').addEventListener('click', function (e) {
     if (e.target === this) closeModal();
   });
