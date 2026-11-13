@@ -7,3 +7,7 @@ desktop.ini
 
 # 依赖（本项目零依赖，防止以后误加）
 node_modules/
+
+# WorkBuddy 发布工具生成，不进代码库
+.wbapp_*.genie
+.workbuddy/
