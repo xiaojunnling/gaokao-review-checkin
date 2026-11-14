@@ -8,7 +8,7 @@
 
 ## 怎么验证
 
-- [ ] `node --check app.js && node --check data.js && node --check sw.js` 通过
+- [ ] `node scripts/check.js` 通过
 - [ ] 双击 `index.html` 能正常打开，五个页面都能点
 - [ ] 手机宽度（<980px）下布局正常
 - [ ] 改动没影响已有进度数据（`localStorage` 的 `gk_review_v1` 结构未变）

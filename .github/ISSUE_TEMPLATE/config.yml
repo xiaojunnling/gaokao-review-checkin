@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: 先看这里再提
     url: https://github.com/xiaojunnling/gaokao-review-checkin/blob/main/README.md
-    about: README 的「当前进度」和「已知待办」里可能已经写了你的想法
+    about: README 的「路线图」和 CHANGELOG 的「已知待办」里可能已经写了你的想法
