@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: 仓库自检
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 与本地 `node scripts/check.js` 完全同一份检查：
+      # 脚本语法、manifest 与图标、页面引用、离线缓存清单、
+      # 不该入库的文件、本机路径与密钥。
+      - name: 自检
+        run: node scripts/check.js
