@@ -518,6 +518,17 @@ function pomoRenderPage() {
 
   var html = '';
 
+  /* 没选喇叭就等于没声音，必须明说 */
+  if (!st.sinkId && st.sound) {
+    html += '<div class="alert warn" style="margin-bottom:14px">' + ico('bulb') +
+      '<div><b>还没选喇叭。</b>到点的声音现在跟着你戴的耳机走，很可能听不到。' +
+      '在下面「到点怎么喊你」里点一下「选喇叭」，挑名字带 Realtek 的那个。</div></div>';
+  }
+  if (!st.sound && !st.fullscreen && !st.pushBrowser) {
+    html += '<div class="alert warn" style="margin-bottom:14px">' + ico('alert') +
+      '<div><b>三项提醒全关了。</b>到点不会响、不会变色、也不会弹窗。</div></div>';
+  }
+
   html += '<div class="card pomo-card">' +
     '<div class="pomo-stage">' +
       '<svg class="pomo-ring" viewBox="0 0 200 200">' +

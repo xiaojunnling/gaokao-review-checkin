@@ -692,10 +692,11 @@ function renderStats() {
     const pt = pomoTotal();
     const ptd = pomoToday(false);
     const busyDays = pt.days || 1;
+    const basis = mins + pt.minutes;   // 打卡时长 + 番茄时长，避免番茄被重复计入分母
     html += '<div class="stat-row" style="margin-bottom:14px">' +
       statCard('今天番茄', ptd.count, '个', ptd.minutes + ' 分钟') +
       statCard('累计番茄', pt.count, '个', pt.days + ' 天有记录') +
-      statCard('累计专注', (pt.minutes / 60).toFixed(1), 'h', '占累计时长 ' + (mins ? Math.round(pt.minutes / mins * 100) : 0) + '%') +
+      statCard('累计专注', (pt.minutes / 60).toFixed(1), 'h', '占学习总时长 ' + (basis ? Math.round(pt.minutes / basis * 100) : 0) + '%') +
       statCard('日均番茄', (pt.count / busyDays).toFixed(1), '个', '只在有记录的天里算') +
     '</div>';
   }
