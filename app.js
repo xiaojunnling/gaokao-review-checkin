@@ -244,7 +244,39 @@ function renderAll() {
   if (currentPage === 'plan') renderPlan();
   if (currentPage === 'timetable') renderTimetable();
   if (currentPage === 'stats') renderStats();
-  if (currentPage === 'pomo' && typeof pomoRenderPage === 'function') pomoRenderPage();
+  if (currentPage === 'pomo') {
+    if (typeof pomoRenderPage === 'function') {
+      try { pomoRenderPage(); } catch (e) { pomoBroken('渲染出错：' + (e && e.message ? e.message : e)); }
+    } else {
+      pomoRetryLoad();
+    }
+  }
+}
+
+/* 番茄钟脚本偶尔会因为缓存或网络没加载下来，这里自愈一次 */
+let pomoRetrying = false;
+function pomoRetryLoad() {
+  if (pomoRetrying) return;
+  pomoRetrying = true;
+  const s = document.createElement('script');
+  s.src = 'pomodoro.js?retry=' + Date.now();
+  s.onload = function () {
+    pomoRetrying = false;
+    if (currentPage === 'pomo' && typeof pomoRenderPage === 'function') pomoRenderPage();
+  };
+  s.onerror = function () {
+    pomoRetrying = false;
+    pomoBroken('番茄钟脚本没加载下来');
+  };
+  document.body.appendChild(s);
+}
+
+function pomoBroken(msg) {
+  const el = document.getElementById('page-pomo');
+  if (!el || el.innerHTML.trim()) return;
+  el.innerHTML = '<div class="alert warn" style="margin:20px">' + ico('alert') +
+    '<div><b>' + esc(msg) + '。</b>按 Ctrl+Shift+R 强制刷新一次就能恢复；' +
+    '如果还不行，把浏览器里这个站点的数据清一下。</div></div>';
 }
 
 /* ---------- 外壳 ---------- */
