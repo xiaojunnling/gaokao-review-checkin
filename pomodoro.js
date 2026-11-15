@@ -31,8 +31,6 @@ var pomoS = { phase: 'idle', endAt: 0, paused: false, remain: 0, total: 0, left:
 var pomoTimer = null;
 var pipTimer = null;
 var pipWin = null;
-var pipSized = false;          /* 这个浮窗是否已经缩到目标尺寸 */
-var PIP_W = 300, PIP_H = 330;  /* 浮窗想要的显示区尺寸 */
 var pomoFinishing = false;
 var pomoFlashTimer = null;
 var pomoTitleTimer = null;
@@ -626,7 +624,7 @@ function pomoRenderPage() {
       '<button class="btn" onclick="pomoStop()">结束</button>' +
       '<button class="btn" onclick="pomoOpenPip()">浮窗置顶</button>' +
     '</div>' +
-    '<div class="pomo-tip" id="pomoTip">浮窗会一直压在所有窗口上面，切去看网课也不会消失。刚打开时会跟主窗口一样大，点它一下就会缩到小尺寸。到点从你选的那只喇叭响，屏幕会变色。</div>' +
+    '<div class="pomo-tip" id="pomoTip">浮窗会一直压在所有窗口上面，切去看网课也不会消失。到点从你选的那只喇叭响，屏幕会变色。</div>' +
   '</div>';
 
   /* 节奏 */
@@ -765,20 +763,8 @@ function pomoInlineHtml() {
 
 /* ---------- 浮窗 ---------- */
 
-/* 浮窗的宽高只能由浮窗自己拿到用户点击时才能改，这里把外框和显示区的差额算进去，
-   让显示区正好是 PIP_W × PIP_H */
-function pipFit(win) {
-  try {
-    var dw = win.outerWidth - win.innerWidth;
-    var dh = win.outerHeight - win.innerHeight;
-    win.resizeTo(PIP_W + dw, PIP_H + dh);
-    return true;
-  } catch (e) { return false; }
-}
-
 function pomoClosePip() {
   if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
-  pipSized = false;
   if (pipWin) { try { pipWin.close(); } catch (e) { } pipWin = null; }
 }
 
@@ -787,19 +773,13 @@ function pomoOpenPip() {
     toast('这个浏览器不支持浮窗，换 Chrome 或 Edge 打开');
     return;
   }
-  /* 已经开着就直接用，不要关掉重开 —— 每次重开浏览器都会按主窗口大小给，白缩一次 */
-  if (pipWin && !pipWin.closed) {
-    try { pipWin.focus(); } catch (e) { }
-    pomoRenderPip();
-    toast(pipSized ? '浮窗已经开着' : '浮窗已经开着 · 点一下浮窗就会缩到小尺寸');
-    return;
-  }
+  /* 已经有一个浮窗时再申请会直接失败，先把旧的收掉 */
   pomoClosePip();
   if (documentPictureInPicture.window) {
     try { documentPictureInPicture.window.close(); } catch (e) { }
   }
 
-  documentPictureInPicture.requestWindow({ width: PIP_W, height: PIP_H, disallowReturnToOpener: true }).then(function (win) {
+  documentPictureInPicture.requestWindow({ width: 300, height: 330 }).then(function (win) {
     pipWin = win;
 
     /* 把主页面样式搬进浮窗 */
@@ -851,23 +831,6 @@ function pomoOpenPip() {
         '</div>' +
       '</div>';
 
-    /* Chrome 会忽略 requestWindow 里的宽高，浮窗一开就是主窗口那么大。
-       而浮窗要缩尺寸，必须由浮窗自己收到一次用户点击才允许，
-       所以在这里挂一次性监听：第一次点浮窗（点按钮也算）顺手缩到目标尺寸 */
-    pipSized = false;
-    win.document.addEventListener('click', function () {
-      if (pipSized) return;
-      pipSized = true;
-      if (!pipFit(win)) return;
-      setTimeout(function () {
-        var dx = PIP_W - win.innerWidth;
-        var dy = PIP_H - win.innerHeight;
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-          try { win.resizeTo(win.outerWidth + dx, win.outerHeight + dy); } catch (e) { }
-        }
-      }, 180);
-    });
-
     win.document.getElementById('pipMain').onclick = pomoToggle;
     win.document.getElementById('pipSkip').onclick = pomoSkip;
     win.document.getElementById('pipStop').onclick = pomoStop;
@@ -879,14 +842,13 @@ function pomoOpenPip() {
 
     win.addEventListener('pagehide', function () {
       if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
-      pipSized = false;
       pipWin = null;
       var tip = document.getElementById('pomoTip');
       if (tip) tip.textContent = '浮窗已关。计时还在跑，点「浮窗置顶」可以重新打开。';
     });
 
     pomoRenderPip();
-    toast('浮窗已打开 · 太大就点一下它，自动缩到小尺寸');
+    toast('浮窗已打开 · 拖到屏幕角落就行');
   }).catch(function (e) {
     console.warn(e);
     toast('浮窗打不开，可能被浏览器拦了');

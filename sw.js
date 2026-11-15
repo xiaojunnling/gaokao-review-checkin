@@ -3,14 +3,14 @@
  * 其余资源：直接取缓存。脚本样式都带 ?v= 版本号，换了版本就是新地址，
  *          所以缓存不会把旧文件喂给新页面。
  */
-const CACHE = 'gk-review-v6';
+const CACHE = 'gk-review-v5';
 const PRECACHE = [
   './',
   './index.html',
-  './styles.css?v=6',
-  './app.js?v=6',
-  './data.js?v=6',
-  './pomodoro.js?v=6',
+  './styles.css?v=5',
+  './app.js?v=5',
+  './data.js?v=5',
+  './pomodoro.js?v=5',
   './manifest.json',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
