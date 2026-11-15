@@ -440,6 +440,23 @@ function pomoTestSound() {
   toast('听得到吗？听不到就换设备，或者把音量拉满');
 }
 
+function pomoAskNotify() {
+  if (!('Notification' in window)) { toast('这个浏览器不支持系统通知'); return; }
+  try {
+    var p = Notification.requestPermission();
+    if (p && typeof p.then === 'function') {
+      p.then(function (r) {
+        if (currentPage === 'pomo') pomoRenderPage();
+        toast(r === 'granted' ? '系统通知已允许' : '通知被拦了，到点只会在窗口里变色');
+      }).catch(function () { if (currentPage === 'pomo') pomoRenderPage(); });
+    } else {
+      setTimeout(function () { if (currentPage === 'pomo') pomoRenderPage(); }, 500);
+    }
+  } catch (e) {
+    toast('申请通知权限失败');
+  }
+}
+
 /* 到点时整块屏幕变红／变绿，抢注意力 */
 function pomoAlarm(title, sub, kind) {
   try {
@@ -567,6 +584,13 @@ function pomoRenderPage() {
   var all = pomoTotal();
   var ph = POMO_PHASE[pomoS.phase] || POMO_PHASE.idle;
 
+  /* 通知到底给没给，得摆在明面上，否则「弹系统通知」那个勾是假的 */
+  var nperm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  var nText = nperm === 'granted' ? '系统通知：已允许'
+    : nperm === 'denied' ? '系统通知：被浏览器拦了，要手动放开'
+      : nperm === 'unsupported' ? '系统通知：这个浏览器不支持'
+        : '系统通知：还没允许';
+
   var html = '';
 
   /* 没选喇叭就等于没声音，必须明说 */
@@ -652,6 +676,20 @@ function pomoRenderPage() {
     '<label class="pomo-chk"><input type="checkbox" id="pmSound" ' + (st.sound ? 'checked' : '') + '> 到点响铃</label>' +
     '<label class="pomo-chk"><input type="checkbox" id="pmFullscreen" ' + (st.fullscreen ? 'checked' : '') + '> 到点整块屏幕变色（红＝该休息，绿＝该学习）</label>' +
     '<label class="pomo-chk"><input type="checkbox" id="pmPushBrowser" ' + (st.pushBrowser ? 'checked' : '') + '> 顺便弹一个 Windows 系统通知</label>' +
+
+    /* 不靠声音时，窗口被挡住就什么都看不见，这里把两条后路摆出来 */
+    '<div class="pomo-sink" style="margin-top:16px">' +
+      '<div class="ps-lab">窗口被别的窗口挡住时</div>' +
+      '<div class="ps-val ' + (nperm === 'granted' ? 'on' : '') + '">' + nText + '</div>' +
+      '<div class="ps-acts">' +
+        (nperm === 'granted' ? '' : '<button class="btn primary" onclick="pomoAskNotify()">允许通知</button>') +
+        '<button class="btn" onclick="pomoOpenPip()">开浮窗（一直压在最上面）</button>' +
+      '</div>' +
+      '<div class="hint" style="margin-top:10px;line-height:1.8">' +
+        '不响铃也能知道：到点整块屏幕会变红或变绿，持续 25 秒，点一下就关。' +
+        '但这个窗口被挡住时就看不见了，所以上面两条至少留一条。' +
+      '</div>' +
+    '</div>' +
 
     '<div style="margin-top:16px"><button class="btn primary" onclick="pomoSaveSettings()">保存设置</button></div>' +
   '</div>';
