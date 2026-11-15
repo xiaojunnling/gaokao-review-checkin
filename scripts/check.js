@@ -19,8 +19,8 @@ const read = (p) => fs.readFileSync(p, 'utf8');
 const exists = (p) => fs.existsSync(path.join(root, p));
 const strip = (p) => p.replace(/^\.\//, '').split(/[?#]/)[0];
 
-/* 1. 三个脚本的语法 */
-for (const f of ['app.js', 'data.js', 'sw.js']) {
+/* 1. 四个脚本的语法 */
+for (const f of ['app.js', 'data.js', 'pomodoro.js', 'sw.js']) {
   try {
     execFileSync(process.execPath, ['--check', f], { stdio: 'pipe' });
   } catch (e) {
@@ -64,6 +64,20 @@ if (!swBlock) {
   for (const p of list) {
     if (p !== './' && !exists(strip(p))) fail(`sw.js 预缓存路径不存在：${p}`);
   }
+}
+
+/* 4.1 版本号一致：页面里的 ?v=、预缓存清单、缓存名必须是同一个数，
+   否则会出现「新页面配旧脚本」或者离线时拿不到文件 */
+const idxVers = [...read('index.html').matchAll(/\?v=(\d+)/g)].map((m) => m[1]);
+const preVers = [...(swBlock ? swBlock[1] : '').matchAll(/\?v=(\d+)/g)].map((m) => m[1]);
+const cacheVer = (read('sw.js').match(/const CACHE = 'gk-review-v(\d+)'/) || [])[1];
+const verSet = new Set([...idxVers, ...preVers, cacheVer].filter(Boolean));
+if (verSet.size !== 1) {
+  fail(`版本号不一致：index.html 是 ${[...new Set(idxVers)].join('/') || '无'}，` +
+    `sw.js 预缓存是 ${[...new Set(preVers)].join('/') || '无'}，缓存名是 ${cacheVer || '无'}`);
+}
+if (idxVers.length !== preVers.length) {
+  fail(`带版本号的资源数量不一致：index.html ${idxVers.length} 个，sw.js 预缓存 ${preVers.length} 个`);
 }
 
 /* 5. 不能入库的文件与目录 */

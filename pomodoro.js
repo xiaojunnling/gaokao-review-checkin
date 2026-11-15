@@ -3,7 +3,7 @@
  * 浮窗：Document Picture-in-Picture，始终压在最上层，切标签页也不消失
  * 提醒：网页直接把提示音送到指定喇叭（绕过耳机）+ 整屏变色 + 系统通知 + 浮窗闪红
  * 记录：每完成一个专注段，自动把时长累加进当天打卡数据
- * 依赖 app.js 里的 S / save() / todayStr() / toast() / esc()
+ * 依赖 app.js 里的 S / savePomo() / todayStr() / toast() / esc()
  */
 
 var POMO_DEF = {
@@ -77,7 +77,7 @@ function pomoAddRecord(min) {
   if (!d.list) d.list = [];
   d.list.push({ at: Date.now(), min: min });
   if (d.list.length > 60) d.list = d.list.slice(-60);
-  save();
+  pomoSaveToDisk();
 }
 
 /* ---------- 计时核心 ---------- */
@@ -111,16 +111,42 @@ function pomoSave() {
     remain: pomoS.paused ? pomoS.remain : 0,
     total: pomoS.total
   };
-  save();
+  pomoSaveToDisk();
+}
+
+/* 番茄钟写得最勤，只写 pomo 这一段，不能整份覆盖别人的打卡和勾选 */
+function pomoSaveToDisk() {
+  if (typeof savePomo === 'function') savePomo();
+  else save();
+}
+
+function pomoReset() {
+  pomoStopTimer();
+  pomoS.phase = 'idle';
+  pomoS.paused = false;
+  pomoS.endAt = 0;
+  pomoS.remain = 0;
+  pomoS.left = 0;
+  pomoS.total = 0;
+  pomoClosePip();
+  pomoSettings();
+  pomoRestore();
+  if (currentPage === 'pomo') pomoRenderPage();
 }
 
 function pomoRestore() {
   if (!S.pomo || !S.pomo.run) return;
   var r = S.pomo.run;
+  /* 早先版本或手工改过的数据里，phase 可能不是认得的那几种 */
+  if (!r || !POMO_PHASE[r.phase] || r.phase === 'idle') {
+    S.pomo.run = null;
+    pomoSaveToDisk();
+    return;
+  }
   var left = r.paused ? (r.remain || 0) : (r.endAt - Date.now());
   if (left <= 0 || left > (r.total || 0) + 1000) {
     S.pomo.run = null;
-    save();
+    pomoSaveToDisk();
     return;
   }
   pomoS.phase = r.phase;
@@ -133,17 +159,26 @@ function pomoRestore() {
 }
 
 function pomoStartTimer() {
-  if (pomoTimer) return;
-  pomoTimer = setInterval(pomoTick, 250);
+  if (!pomoTimer) pomoTimer = setInterval(pomoTick, 250);
+  /* 浮窗在场时让它自己也跑一份心跳：主页面切到后台会被降频，浮窗不会 */
+  if (pipWin && !pipTimer) {
+    try { pipTimer = pipWin.setInterval(pomoTick, 250); } catch (e) { pipTimer = null; }
+  }
 }
 
+/* 主页面和浮窗各有一份心跳，停的时候两份都要清，漏一份就会空转 */
 function pomoStopTimer() {
   if (pomoTimer) { clearInterval(pomoTimer); pomoTimer = null; }
+  if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
 }
 
 function pomoTick() {
   if (pomoS.phase === 'idle') { pomoStopTimer(); return; }
-  var left = pomoS.paused ? pomoS.remain : (pomoS.endAt - Date.now());
+  /* 暂停时剩余时间不变，没必要每 250ms 重画一次 */
+  if (pomoS.paused) return;
+  /* 状态残缺（比如手工改过数据）时别拿 0 当结束时间，否则会凭空记一段 */
+  if (!pomoS.endAt) { pomoStopTimer(); return; }
+  var left = pomoS.endAt - Date.now();
   pomoS.left = left;
   if (left <= 0) { pomoFinish(); return; }
   pomoRenderLight();
@@ -212,6 +247,7 @@ function pomoToggle() {
     pomoStartTimer();
   } else {
     pomoS.remain = Math.max(0, pomoS.endAt - Date.now());
+    pomoS.left = pomoS.remain;
     pomoS.paused = true;
   }
   pomoSave();
@@ -373,7 +409,7 @@ function pomoSetSink(id, label) {
   var st = pomoSettings();
   st.sinkId = id || '';
   st.sinkLabel = label || '';
-  save();
+  pomoSaveToDisk();
   closeModal();
   if (currentPage === 'pomo') pomoRenderPage();
   toast('提示音从「' + (label || '系统默认') + '」出');
@@ -384,7 +420,7 @@ function pomoClearSink() {
   var st = pomoSettings();
   st.sinkId = '';
   st.sinkLabel = '';
-  save();
+  pomoSaveToDisk();
   if (currentPage === 'pomo') pomoRenderPage();
   toast('已改回系统默认设备');
 }
@@ -474,8 +510,13 @@ function pomoRingOffset(left, total, r) {
 }
 
 function pomoRender() {
-  if (currentPage === 'pomo') pomoRenderPage();
-  pomoRenderLight();
+  if (currentPage === 'pomo') {
+    /* 页面已经画好了就只更新数字。整块重建会把正在填的节奏、音量冲掉 */
+    if (document.getElementById('pomoTime')) pomoRenderLight();
+    else pomoRenderPage();
+  } else {
+    pomoRenderLight();
+  }
   pomoRenderPip();
 }
 
@@ -638,7 +679,7 @@ function pomoSaveSettings() {
   st.sound = document.getElementById('pmSound').checked;
   st.fullscreen = document.getElementById('pmFullscreen').checked;
   st.pushBrowser = document.getElementById('pmPushBrowser').checked;
-  save();
+  pomoSaveToDisk();
   pomoRenderPage();
   toast('设置已保存');
 }
@@ -652,7 +693,7 @@ function pomoVolPreview(v) {
 function pomoVolCommit(v) {
   var st = pomoSettings();
   st.volume = Number(v) || 90;
-  save();
+  pomoSaveToDisk();
   pomoBeep(2);
 }
 
@@ -673,12 +714,21 @@ function pomoInlineHtml() {
 
 /* ---------- 浮窗 ---------- */
 
+function pomoClosePip() {
+  if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
+  if (pipWin) { try { pipWin.close(); } catch (e) { } pipWin = null; }
+}
+
 function pomoOpenPip() {
   if (!('documentPictureInPicture' in window)) {
     toast('这个浏览器不支持浮窗，换 Chrome 或 Edge 打开');
     return;
   }
-  if (pipWin) { try { pipWin.close(); } catch (e) { } pipWin = null; }
+  /* 已经有一个浮窗时再申请会直接失败，先把旧的收掉 */
+  pomoClosePip();
+  if (documentPictureInPicture.window) {
+    try { documentPictureInPicture.window.close(); } catch (e) { }
+  }
 
   documentPictureInPicture.requestWindow({ width: 300, height: 330 }).then(function (win) {
     pipWin = win;
@@ -736,10 +786,10 @@ function pomoOpenPip() {
     win.document.getElementById('pipSkip').onclick = pomoSkip;
     win.document.getElementById('pipStop').onclick = pomoStop;
 
-    /* 主页面切到后台会被浏览器降频，浮窗可见所以不被降频，
-       让浮窗自己驱动一次计时，保证倒计时不卡、到点不迟到 */
+    /* 主页面切到后台会被浏览器降频，浮窗可见所以不被降频。
+       空闲时不用空转，开始计时后由 pomoStartTimer 补上这份心跳 */
     if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
-    pipTimer = win.setInterval(pomoTick, 250);
+    if (pomoS.phase !== 'idle') pipTimer = win.setInterval(pomoTick, 250);
 
     win.addEventListener('pagehide', function () {
       if (pipTimer) { clearInterval(pipTimer); pipTimer = null; }
@@ -792,6 +842,10 @@ function pomoRenderPip() {
 /* ---------- 挂载 ---------- */
 
 (function pomoBoot() {
+  /* 脚本万一被补加载了第二份，不要重复挂心跳和监听 */
+  if (window.__pomoBooted) return;
+  window.__pomoBooted = true;
+
   pomoSettings();
   pomoRestore();
   document.addEventListener('visibilitychange', function () {
@@ -803,7 +857,8 @@ function pomoRenderPip() {
   if (pomoS.phase !== 'idle') {
     pomoStartTimer();
     setTimeout(function () {
-      toast('番茄还在跑 · ' + POMO_PHASE[pomoS.phase].t + ' ' + pomoMMSS(Math.max(0, pomoS.left)));
+      var ph = POMO_PHASE[pomoS.phase] || POMO_PHASE.idle;
+      toast('番茄还在跑 · ' + ph.t + ' ' + pomoMMSS(Math.max(0, pomoS.left)));
     }, 600);
   }
 })();

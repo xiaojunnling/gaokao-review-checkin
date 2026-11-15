@@ -41,26 +41,82 @@ const DEFAULT_STATE = {
 };
 
 let S = loadState();
+/* 本窗口最后一次写进本地存储的原文。用来发现「别的窗口写过」，
+   否则各开一个窗口时，谁后写谁的旧快照就把别人的记录盖掉。 */
+let lastWritten = readRaw();
+
+function cloneState(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* 把任意来源的数据补齐成完整状态，旧版本缺字段也能直接用 */
+function normalize(o) {
+  const st = Object.assign(cloneState(DEFAULT_STATE), o || {});
+  if (!st.pomo || typeof st.pomo !== 'object') st.pomo = { settings: {}, days: {}, run: null };
+  if (!st.pomo.settings || typeof st.pomo.settings !== 'object') st.pomo.settings = {};
+  if (!st.pomo.days || typeof st.pomo.days !== 'object') st.pomo.days = {};
+  if (!st.checkins || typeof st.checkins !== 'object') st.checkins = {};
+  if (!st.progress || typeof st.progress !== 'object') st.progress = {};
+  ['plans', 'timetable', 'todos', 'log'].forEach(function (k) {
+    if (!Array.isArray(st[k])) st[k] = [];
+  });
+  return st;
+}
+
+function readRaw() {
+  try { return localStorage.getItem(KEY); } catch (e) { return null; }
+}
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
-    const o = JSON.parse(raw);
-    const st = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), o);
-    /* pomo 单独合并，避免旧数据覆盖掉新增子字段 */
-    if (!st.pomo || typeof st.pomo !== 'object') st.pomo = { settings: {}, days: {}, run: null };
-    if (!st.pomo.settings) st.pomo.settings = {};
-    if (!st.pomo.days) st.pomo.days = {};
-    return st;
+    const raw = readRaw();
+    if (!raw) return cloneState(DEFAULT_STATE);
+    return normalize(JSON.parse(raw));
   } catch (e) {
     console.warn('读取本地数据失败', e);
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    return cloneState(DEFAULT_STATE);
   }
 }
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(S)); }
-  catch (e) { toast('保存失败：浏览器本地存储不可用'); }
+  try {
+    const raw = JSON.stringify(S);
+    localStorage.setItem(KEY, raw);
+    lastWritten = raw;
+  } catch (e) { toast('保存失败：浏览器本地存储不可用'); }
+}
+
+/* 番茄钟每次状态变化都要写盘。整份覆盖会顺手把另一窗口刚写的打卡、勾选冲掉，
+   所以这里只替换 pomo 这一段，其余字段以磁盘上的最新内容为准。 */
+function savePomo() {
+  let base = null;
+  try {
+    const raw = readRaw();
+    if (raw) base = normalize(JSON.parse(raw));
+  } catch (e) { base = null; }
+  if (!base) base = normalize(S);
+  base.pomo = S.pomo;
+  S = base;
+  save();
+  return true;
+}
+
+/* 别的窗口写盘后，本窗口换成最新数据；正在跑的番茄段以本窗口内存为准 */
+function adoptExternal(st) {
+  const running = (typeof pomoS !== 'undefined' && pomoS && pomoS.phase !== 'idle')
+    ? cloneState(S.pomo.run || null) : null;
+  S = st;
+  if (running) S.pomo.run = running;
+}
+
+function syncFromDisk() {
+  const raw = readRaw();
+  if (!raw || raw === lastWritten) return false;
+  let o;
+  try { o = JSON.parse(raw); } catch (e) { return false; }
+  adoptExternal(normalize(o));
+  lastWritten = raw;
+  const ae = document.activeElement;
+  const typing = !document.hidden && ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
+  if (typing) renderShell(); else renderAll();
+  return true;
 }
 
 /* ---------- 章节计算 ---------- */
@@ -255,9 +311,11 @@ function renderAll() {
 
 /* 番茄钟脚本偶尔会因为缓存或网络没加载下来，这里自愈一次 */
 let pomoRetrying = false;
+let pomoRetryCount = 0;
 function pomoRetryLoad() {
-  if (pomoRetrying) return;
+  if (pomoRetrying || pomoRetryCount >= 2) return;
   pomoRetrying = true;
+  pomoRetryCount++;
   const s = document.createElement('script');
   s.src = 'pomodoro.js?retry=' + Date.now();
   s.onload = function () {
@@ -271,12 +329,16 @@ function pomoRetryLoad() {
   document.body.appendChild(s);
 }
 
+/* 页面里可能已经有内容，提示条插在最上面，不要因为「已有内容」就不提示 */
 function pomoBroken(msg) {
   const el = document.getElementById('page-pomo');
-  if (!el || el.innerHTML.trim()) return;
-  el.innerHTML = '<div class="alert warn" style="margin:20px">' + ico('alert') +
+  if (!el) return;
+  const bar = '<div class="alert warn" id="pomoBrokenBar" style="margin:20px">' + ico('alert') +
     '<div><b>' + esc(msg) + '。</b>按 Ctrl+Shift+R 强制刷新一次就能恢复；' +
     '如果还不行，把浏览器里这个站点的数据清一下。</div></div>';
+  const old = document.getElementById('pomoBrokenBar');
+  if (old) { old.outerHTML = bar; return; }
+  el.insertAdjacentHTML('afterbegin', bar);
 }
 
 /* ---------- 外壳 ---------- */
@@ -295,7 +357,9 @@ function renderShell() {
   else badge.style.display = 'none';
 
   const ck = S.checkins[todayStr()];
-  document.title = (od > 0 && !ck ? '● ' : '') + '复习打卡 · 高考数学';
+  /* 番茄到点会闪标题，那时候别把它改回来 */
+  const flashing = typeof pomoTitleTimer !== 'undefined' && pomoTitleTimer;
+  if (!flashing) document.title = (od > 0 && !ck ? '● ' : '') + '复习打卡 · 高考数学';
   const td = document.getElementById('topDate');
   if (td) td.textContent = fmtMD(todayStr()) + ' ' + weekdayOf(todayStr());
 }
@@ -724,7 +788,9 @@ function renderStats() {
     const pt = pomoTotal();
     const ptd = pomoToday(false);
     const busyDays = pt.days || 1;
-    const basis = mins + pt.minutes;   // 打卡时长 + 番茄时长，避免番茄被重复计入分母
+    /* 打卡时长通常已经把番茄时长包在里面（打卡弹窗默认填的就是番茄分钟数），
+       两个相加会把这部分算两遍，占比被压得偏低。取较大的那个才是「学习总时长」。 */
+    const basis = Math.max(mins, pt.minutes);
     html += '<div class="stat-row" style="margin-bottom:14px">' +
       statCard('今天番茄', ptd.count, '个', ptd.minutes + ' 分钟') +
       statCard('累计番茄', pt.count, '个', pt.days + ' 天有记录') +
@@ -1143,7 +1209,9 @@ function importData(input) {
       const o = JSON.parse(reader.result);
       if (!o || typeof o !== 'object' || !o.progress) throw new Error('格式不对');
       if (!confirm('导入会覆盖当前全部记录，确定吗？')) return;
-      S = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), o);
+      S = normalize(o);
+      /* 导入的数据里可能带着另一台机器上的番茄运行段，先让计时器按新数据重来一遍 */
+      if (typeof pomoReset === 'function') pomoReset();
       save(); renderAll(); toast('导入成功');
     } catch (e) {
       toast('文件读不了：不是有效的备份');
@@ -1155,7 +1223,9 @@ function importData(input) {
 function clearData() {
   if (!confirm('将删除本机全部打卡、进度、计划和课表，且不可恢复。确定？')) return;
   if (!confirm('再确认一次：真的要清空吗？建议先导出备份。')) return;
-  S = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  /* 先把数据换掉再让番茄钟归零，否则它会按旧状态把计时又续上 */
+  S = cloneState(DEFAULT_STATE);
+  if (typeof pomoReset === 'function') pomoReset();
   save(); renderAll(); toast('已清空');
 }
 
@@ -1206,6 +1276,18 @@ function init() {
   document.querySelectorAll('.nav-item').forEach(function (b) {
     b.addEventListener('click', function () { go(b.dataset.page); });
   });
+
+  /* 同一个站点开了两个窗口时，互相看得见对方的改动 */
+  window.addEventListener('storage', function (e) {
+    if (e.key && e.key !== KEY) return;
+    syncFromDisk();
+  });
+  /* 从后台、从缓存快照(bfcache)回来时，磁盘上的数据可能已经变了 */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) syncFromDisk();
+  });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) syncFromDisk(); });
+  window.addEventListener('focus', function () { syncFromDisk(); });
 
   // 默认展开第一个没做完的章
   for (let i = 0; i < BOOK.length; i++) {
