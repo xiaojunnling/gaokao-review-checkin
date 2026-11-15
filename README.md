@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PWA](https://img.shields.io/badge/PWA-%E5%8F%AF%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85-4F7A5B.svg)](manifest.json)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
-[![Version](https://img.shields.io/badge/version-1.1.2-2B4A6B.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.3-2B4A6B.svg)](CHANGELOG.md)
 [![CI](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml)
 
 把高考数学一轮复习拆成 89 个小节，每节只记三件事：听课、刷题、错题。配合阶段计划、网课课表和每日打卡，随时知道复习到哪、今天该做什么。

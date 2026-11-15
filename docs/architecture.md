@@ -69,6 +69,8 @@
 
 用 `documentPictureInPicture`（Chrome / Edge 116+）。样式是从主文档的 `styleSheets` 里逐条搬过去的，所以新增样式时不需要另外维护一份浮窗 CSS。浮窗关闭后计时继续，只是没了那个置顶小窗。
 
+`requestWindow({ width, height })` 的宽高在 Chrome 157 上不生效，浮窗一律按主窗口大小打开。浏览器只允许浮窗在自己收到用户点击时改尺寸（`resizeTo`，否则 `NotAllowedError`），所以在浮窗文档上挂一次性 `click` 监听：第一次点击（点按钮也算）时按 `outerWidth/outerHeight` 与 `innerWidth/innerHeight` 的差额补齐，把显示区缩到 300×330，随后再校正一次。浮窗已开着时「浮窗置顶」直接复用，不关掉重开，避免又退回大尺寸。
+
 ### 提醒
 
 - 声音由网页自己合成（`AudioContext` + 三角波），再用 `setSinkId` 把输出指向用户选定的设备。这样即使系统默认输出是耳机，提示音也能从笔记本自带喇叭出来。
