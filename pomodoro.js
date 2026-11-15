@@ -297,11 +297,17 @@ function pomoEnsureAudio() {
   return pomoAudioCtx;
 }
 
+var pomoSinkWarned = false;
 function pomoWithSink(ctx, cb) {
   var st = pomoSettings();
   if (!st.sinkId || typeof ctx.setSinkId !== 'function') { cb(); return; }
   ctx.setSinkId(st.sinkId).then(cb).catch(function (e) {
     console.warn('[番茄钟] 指定扬声器失败，改用系统默认', e);
+    /* 拔了耳机、换了设备时会走到这里，光在控制台报错用户看不见 */
+    if (!pomoSinkWarned) {
+      pomoSinkWarned = true;
+      toast('选的那只喇叭现在用不了，这次先按系统默认放');
+    }
     cb();
   });
 }
@@ -369,7 +375,11 @@ function pomoSelectSpeakerFallback() {
     stream.getTracks().forEach(function (t) { t.stop(); });
     return md.enumerateDevices();
   }).then(function (list) {
-    var outs = list.filter(function (d) { return d.kind === 'audiooutput'; });
+    /* 「默认」「通讯」是 Windows 的两个别名，不是真设备：选「通讯」会跑到耳机上，
+       挑起来容易误会，这里只列真实设备 */
+    var outs = list.filter(function (d) {
+      return d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications';
+    });
     if (!outs.length) {
       toast('没找到第二只喇叭，这台机器可能只有一路输出');
       return;
@@ -394,7 +404,7 @@ function pomoShowSinkPicker(outs) {
         return '<button class="' + (on ? 'on' : '') + '" onclick="pomoPickSink(' + i + ')">' + esc(nm) + '</button>';
       }).join('') +
       '</div>' +
-      '<div class="hint" style="margin-top:9px">选笔记本自带的那只（一般是 Realtek），这样你戴着耳机也能听到。</div>' +
+      '<div class="hint" style="margin-top:9px">挑名字带 Realtek 的那个。别选带「虚拟」字样的，那一路不通向任何喇叭。</div>' +
     '</div></div>' +
     '<div class="m-foot"><div class="grow"></div><button class="btn" onclick="closeModal()">取消</button></div>');
 }
@@ -590,7 +600,7 @@ function pomoRenderPage() {
       '<button class="btn" onclick="pomoStop()">结束</button>' +
       '<button class="btn" onclick="pomoOpenPip()">浮窗置顶</button>' +
     '</div>' +
-    '<div class="pomo-tip" id="pomoTip">浮窗会一直压在所有窗口上面，切去看网课也不会消失。到点从机身喇叭响，屏幕会变色。</div>' +
+    '<div class="pomo-tip" id="pomoTip">浮窗会一直压在所有窗口上面，切去看网课也不会消失。到点从你选的那只喇叭响，屏幕会变色。</div>' +
   '</div>';
 
   /* 节奏 */
@@ -627,7 +637,8 @@ function pomoRenderPage() {
         (st.sinkLabel ? '<button class="btn ghost" onclick="pomoClearSink()">改回默认</button>' : '') +
       '</div>' +
       '<div class="hint" id="pomoSinkHint" style="margin-top:10px;line-height:1.8">' +
-        '选笔记本自带的那只（名字里带 Realtek 的那个）。选完声音从机身出去，不经过耳机线，戴着耳机也能听到。' +
+        '挑名字带 Realtek 的那个。它的口上如果插着 3.5mm 耳机，出来的还是耳机声，机身喇叭会被插孔检测断开；' +
+        '想外放，就让这个口空着（耳机改插 USB）。' +
       '</div>' +
     '</div>' +
 
