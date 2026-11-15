@@ -17,7 +17,7 @@ const notes = [];
 const fail = (msg) => problems.push(msg);
 const read = (p) => fs.readFileSync(p, 'utf8');
 const exists = (p) => fs.existsSync(path.join(root, p));
-const strip = (p) => p.replace(/^\.\//, '');
+const strip = (p) => p.replace(/^\.\//, '').split(/[?#]/)[0];
 
 /* 1. 三个脚本的语法 */
 for (const f of ['app.js', 'data.js', 'sw.js']) {
