@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PWA](https://img.shields.io/badge/PWA-%E5%8F%AF%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85-4F7A5B.svg)](manifest.json)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
-[![Version](https://img.shields.io/badge/version-1.1.1-2B4A6B.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.2-2B4A6B.svg)](CHANGELOG.md)
 [![CI](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml)
 
 把高考数学一轮复习拆成 89 个小节，每节只记三件事：听课、刷题、错题。配合阶段计划、网课课表和每日打卡，随时知道复习到哪、今天该做什么。
@@ -25,6 +25,7 @@
 - **章节进度**：10 章 + 4 个进阶篇共 89 个小节，每节「听课 / 刷题 / 错题」三态独立，三项全绿才算通关
 - **阶段计划**：绑定章节范围与起止日期，按剩余天数均摊每日任务，逾期标红提醒
 - **网课课表**：周视图排课，课程可关联到具体小节，上课当天首页提示
+- **高考日期自己填**：倒计时按你那一届算，不预置年份；第一次打开会提示填，之后在「统计 → 数据与设置」里改
 - **打卡统计**：学习时长、状态、备注、连续天数、热力图、最近 7 天、各章完成度
 - **番茄钟**：25 分钟专注 / 5 分钟休息循环，桌面置顶浮窗，到点从指定喇叭响铃并整屏变色，时长自动并入当天打卡
 - **数据管理**：整份 JSON 导出导入，换设备自己搬，不需要账号
@@ -55,7 +56,7 @@ python -m http.server 8000
 
 ```
 .
-├── index.html              页面骨架，按 id 挂载五个页面
+├── index.html              页面骨架，按 id 挂载六个页面
 ├── app.js                  交互、渲染与计算
 ├── pomodoro.js             番茄钟：计时、浮窗、响铃与整屏提醒
 ├── data.js                 const BOOK：14 个章节组、89 个小节
@@ -78,6 +79,16 @@ python -m http.server 8000
 ## 自定义章节
 
 改 `data.js` 里的 `BOOK` 数组，其余逻辑自动适配。字段含义与完成度算法见 [docs/architecture.md](docs/architecture.md)。
+
+## 自己改
+
+全部源码是可读的原生 JavaScript，**没有压缩、没有混淆、没有加密**，也没有构建步骤：打开文件改完保存，刷新页面就生效。想让倒计时对上下一年、想换章节、想改配色，都直接改文件就行，不需要读额外文档。
+
+改完可以跑一次自检，确认没有把引用写坏：
+
+```bash
+node scripts/check.js
+```
 
 ## 路线图
 

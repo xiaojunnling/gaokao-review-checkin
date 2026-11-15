@@ -9,7 +9,7 @@
 ```js
 {
   version: 1,
-  examDate: 'YYYY-MM-DD',          // 高考日期，用于首页倒计时
+  examDate: 'YYYY-MM-DD',          // 高考日期，用于首页倒计时；空字符串表示还没填
   checkins: {                      // 打卡记录，按日期
     'YYYY-MM-DD': { ts, minutes, mood, note }
   },

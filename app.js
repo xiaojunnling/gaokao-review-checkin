@@ -30,7 +30,7 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 /* ---------- 状态 ---------- */
 const DEFAULT_STATE = {
   version: 1,
-  examDate: '2027-06-07',
+  examDate: '',
   checkins: {},
   progress: {},
   plans: [],
@@ -343,8 +343,9 @@ function pomoBroken(msg) {
 
 /* ---------- 外壳 ---------- */
 function renderShell() {
-  const left = daysBetween(todayStr(), S.examDate);
-  document.getElementById('countdown').textContent = left > 0 ? left : 0;
+  /* 高考日期由使用者自己填，没填之前不显示倒计时 */
+  const left = S.examDate ? daysBetween(todayStr(), S.examDate) : null;
+  document.getElementById('countdown').textContent = left === null ? '--' : (left > 0 ? left : 0);
   const g = globalStats();
   const pct = Math.round(g.rate * 100);
   document.getElementById('totalPct').textContent = pct + '%';
@@ -368,7 +369,7 @@ function renderShell() {
 function renderToday() {
   const today = todayStr();
   const ck = S.checkins[today];
-  const left = daysBetween(today, S.examDate);
+  const left = S.examDate ? daysBetween(today, S.examDate) : null;
   const st = streak();
   const mins = totalMinutes();
   const hrs = mins >= 60 ? (mins / 60).toFixed(mins % 60 ? 1 : 0) : '0';
@@ -376,10 +377,19 @@ function renderToday() {
 
   let html = '';
 
+  /* 第一次用的人先看到这一条，倒计时才有意义 */
+  if (!S.examDate) {
+    html += '<div class="alert warn" style="margin-bottom:14px">' + ico('bulb') +
+      '<div><b>先填一下高考日期。</b>倒计时按这个算，每届、每个省份都不一样，所以没有预置。' +
+      '<div style="margin-top:9px;max-width:200px">' +
+        '<input class="input" type="date" id="examDateQuick" onchange="setExamDate(this.value)">' +
+      '</div></div></div>';
+  }
+
   /* 打卡卡 */
   html += '<div class="card hero" style="margin-bottom:16px">' +
     '<div>' +
-      '<div class="d-day">' + new Date().getFullYear() + ' · ' + weekdayOf(today) + (left > 0 ? ' · 距高考 ' + left + ' 天' : ' · 高考日') + '</div>' +
+      '<div class="d-day">' + new Date().getFullYear() + ' · ' + weekdayOf(today) + (left === null ? '' : left > 0 ? ' · 距高考 ' + left + ' 天' : ' · 高考日') + '</div>' +
       '<div class="d-num">' + fmtMD(today) + '</div>' +
       '<div class="d-meta">' + (ck ? '今天已完成打卡 · ' + (ck.minutes ? '学习 ' + ck.minutes + ' 分钟' : '未记录时长') + (ck.note ? ' · ' + esc(ck.note) : '') : '还没有打卡，今天的复习完成后在这里按一下') + '</div>' +
       (typeof pomoInlineHtml === 'function' ? pomoInlineHtml() : '') +
@@ -889,7 +899,7 @@ function dataHTML() {
   const size = new Blob([JSON.stringify(S)]).size;
   return '<div class="sec-head"><h3>数据与设置</h3><span class="sub">所有记录只存在这台电脑的浏览器里</span></div>' +
     '<div class="data-grid">' +
-      '<div class="data-item"><h4>高考日期</h4><p>用于首页倒计时，默认 2027-06-07。</p>' +
+      '<div class="data-item"><h4>高考日期</h4><p>用于首页倒计时，按你自己那一届填。不清空就一直是这个日期。</p>' +
         '<input class="input" type="date" id="examDate" value="' + S.examDate + '" onchange="setExamDate(this.value)"></div>' +
       '<div class="data-item"><h4>导出备份</h4><p>生成一个 JSON 文件，含全部打卡、进度、计划、课表。建议每周导一次。</p>' +
         '<div class="acts"><button class="btn primary" onclick="exportData()">' + ico('download') + '导出 JSON</button>' +
