@@ -23,7 +23,12 @@
     { id, day, start, end, subject, content, type, sections }
   ],
   todos: [ { id, date, text, done } ],
-  log: [ { d, t, id, f, v } ]       // 操作流水，用于「最近 7 天」
+  log: [ { d, t, id, f, v } ],     // 操作流水，用于「最近 7 天」
+  pomo: {                          // 番茄钟，见下节
+    settings: { work, rest, longOn, long, longEvery, sound, volume, sinkId, sinkLabel, fullscreen, pushBrowser },
+    days: { 'YYYY-MM-DD': { count, minutes, list: [ { at, min } ] } },
+    run: { phase, endAt, paused, remain, total } | null   // 正在跑的那一段，刷新后靠它续上
+  }
 }
 ```
 
@@ -31,6 +36,38 @@
 - 小节完成度 = `(l + p + r) / 3`；计划进度 = 其覆盖小节完成度的均值。
 - `log` 只保留最近 3000 条，超出的丢弃最旧的。
 - 导入 JSON 会整份覆盖当前状态，导入前建议先导出备份。
+
+## 番茄钟
+
+`pomodoro.js` 独立于 `app.js`，只通过全局的 `S`、`save()`、`todayStr()`、`toast()`、`esc()` 与主程序通信，因此加载顺序必须排在 `app.js` 之后。
+
+### 计时
+
+- 不用「每秒减一」，而是记下这一段的结束时间戳 `endAt`，每次心跳用 `endAt - Date.now()` 反算剩余。浏览器把后台标签页的定时器降频时，显示会跳，但时间依然准确。
+- 浮窗打开时，额外在浮窗自己的上下文里跑一份心跳。浮窗始终可见、不被降频，因此主页面切到后台后倒计时也不会卡住、到点也不会迟到。
+- 心跳 250ms 一次。两处心跳不会重复结算：`pomoFinish` 先推进状态再发提醒，并用 `pomoFinishing` 防重入。
+
+### 状态流转
+
+- 一个专注段结束：`days[当天].count + 1`、`minutes += work`，然后自动进入休息段；休息结束自动进入下一个专注段，循环不停。
+- 跳过专注段不记时长。
+- `run` 在每次状态变化时写入本地存储。重开页面时如果 `endAt` 仍在未来就续上；已经过期的直接丢弃，不补记时长。
+
+### 浮窗
+
+用 `documentPictureInPicture`（Chrome / Edge 116+）。样式是从主文档的 `styleSheets` 里逐条搬过去的，所以新增样式时不需要另外维护一份浮窗 CSS。浮窗关闭后计时继续，只是没了那个置顶小窗。
+
+### 提醒
+
+- 声音由网页自己合成（`AudioContext` + 三角波），再用 `setSinkId` 把输出指向用户选定的设备。这样即使系统默认输出是耳机，提示音也能从笔记本自带喇叭出来。
+- `selectAudioOutput()` 在部分 Chrome 版本上不可用，因此回落到「申请麦克风权限 → `enumerateDevices()` → 列出 audiooutput 让用户挑」。麦克风只用于读出设备名，不录制、不上传。
+- 整屏变色用 `position: fixed` 的红色 / 绿色遮罩，25 秒后自动收起，点一下也可以关掉。
+- 所有提醒动作都包在 `try/catch` 里：提醒失败绝不影响计时和记录。
+- 不依赖任何第三方服务、不联网、不花钱。
+
+### 打卡联动
+
+打卡弹窗的默认时长取 `days[今天].minutes`，没有番茄记录时才回落到 60。
 
 ## 章节数据
 

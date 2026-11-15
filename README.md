@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PWA](https://img.shields.io/badge/PWA-%E5%8F%AF%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85-4F7A5B.svg)](manifest.json)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
-[![Version](https://img.shields.io/badge/version-1.0.1-2B4A6B.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-2B4A6B.svg)](CHANGELOG.md)
 [![CI](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaojunnling/gaokao-review-checkin/actions/workflows/ci.yml)
 
 把高考数学一轮复习拆成 89 个小节，每节只记三件事：听课、刷题、错题。配合阶段计划、网课课表和每日打卡，随时知道复习到哪、今天该做什么。
@@ -26,12 +26,15 @@
 - **阶段计划**：绑定章节范围与起止日期，按剩余天数均摊每日任务，逾期标红提醒
 - **网课课表**：周视图排课，课程可关联到具体小节，上课当天首页提示
 - **打卡统计**：学习时长、状态、备注、连续天数、热力图、最近 7 天、各章完成度
+- **番茄钟**：25 分钟专注 / 5 分钟休息循环，桌面置顶浮窗，到点从指定喇叭响铃并整屏变色，时长自动并入当天打卡
 - **数据管理**：整份 JSON 导出导入，换设备自己搬，不需要账号
 - **离线可用**：Service Worker 缓存页面，断网可开，可添加到主屏幕
 
 ## 快速开始
 
 直接双击 `index.html` 即可使用。`file://` 下离线缓存不生效，其余功能正常。
+
+番茄钟的桌面浮窗依赖 Document Picture-in-Picture，需要 Chrome / Edge 116 及以上。换成别的浏览器时计时照常走，只是没有那个置顶小窗。
 
 想体验离线与「安装到主屏幕」，起一个本地服务器：
 
@@ -54,6 +57,7 @@ python -m http.server 8000
 .
 ├── index.html              页面骨架，按 id 挂载五个页面
 ├── app.js                  交互、渲染与计算
+├── pomodoro.js             番茄钟：计时、浮窗、响铃与整屏提醒
 ├── data.js                 const BOOK：14 个章节组、89 个小节
 ├── styles.css              样式与响应式布局
 ├── manifest.json           PWA 清单

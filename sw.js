@@ -1,11 +1,12 @@
 /* 离线缓存：优先取网络（保证更新），断网时回落到缓存 */
-const CACHE = 'gk-review-v2';
+const CACHE = 'gk-review-v3';
 const PRECACHE = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './data.js',
+  './pomodoro.js',
   './manifest.json',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',

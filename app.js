@@ -36,7 +36,8 @@ const DEFAULT_STATE = {
   plans: [],
   timetable: [],
   todos: [],
-  log: []
+  log: [],
+  pomo: { settings: {}, days: {}, run: null }
 };
 
 let S = loadState();
@@ -46,7 +47,12 @@ function loadState() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
     const o = JSON.parse(raw);
-    return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), o);
+    const st = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), o);
+    /* pomo 单独合并，避免旧数据覆盖掉新增子字段 */
+    if (!st.pomo || typeof st.pomo !== 'object') st.pomo = { settings: {}, days: {}, run: null };
+    if (!st.pomo.settings) st.pomo.settings = {};
+    if (!st.pomo.days) st.pomo.days = {};
+    return st;
   } catch (e) {
     console.warn('读取本地数据失败', e);
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -224,7 +230,7 @@ function go(page) {
   document.querySelectorAll('.nav-item').forEach(function (b) {
     b.classList.toggle('on', b.dataset.page === page);
   });
-  const titles = { today: '今日', book: '章节进度', plan: '阶段计划', timetable: '网课课表', stats: '统计与数据' };
+  const titles = { today: '今日', book: '章节进度', plan: '阶段计划', timetable: '网课课表', stats: '统计与数据', pomo: '番茄钟' };
 
   document.getElementById('pageTitle').textContent = titles[page] || '';
   document.querySelector('.page-wrap').scrollTop = 0;
@@ -238,6 +244,7 @@ function renderAll() {
   if (currentPage === 'plan') renderPlan();
   if (currentPage === 'timetable') renderTimetable();
   if (currentPage === 'stats') renderStats();
+  if (currentPage === 'pomo' && typeof pomoRenderPage === 'function') pomoRenderPage();
 }
 
 /* ---------- 外壳 ---------- */
@@ -279,6 +286,7 @@ function renderToday() {
       '<div class="d-day">' + new Date().getFullYear() + ' · ' + weekdayOf(today) + (left > 0 ? ' · 距高考 ' + left + ' 天' : ' · 高考日') + '</div>' +
       '<div class="d-num">' + fmtMD(today) + '</div>' +
       '<div class="d-meta">' + (ck ? '今天已完成打卡 · ' + (ck.minutes ? '学习 ' + ck.minutes + ' 分钟' : '未记录时长') + (ck.note ? ' · ' + esc(ck.note) : '') : '还没有打卡，今天的复习完成后在这里按一下') + '</div>' +
+      (typeof pomoInlineHtml === 'function' ? pomoInlineHtml() : '') +
       '<div class="streak">' +
         '<div><div class="n">' + st + '</div><div class="l">连续打卡</div></div>' +
         '<div><div class="n">' + monthCount() + '</div><div class="l">本月打卡</div></div>' +
@@ -680,6 +688,18 @@ function renderStats() {
     statCard('章节进度', Math.round(g.rate * 100), '%', g.done + '/' + g.total + ' 节通关') +
   '</div>';
 
+  if (typeof pomoTotal === 'function') {
+    const pt = pomoTotal();
+    const ptd = pomoToday(false);
+    const busyDays = pt.days || 1;
+    html += '<div class="stat-row" style="margin-bottom:14px">' +
+      statCard('今天番茄', ptd.count, '个', ptd.minutes + ' 分钟') +
+      statCard('累计番茄', pt.count, '个', pt.days + ' 天有记录') +
+      statCard('累计专注', (pt.minutes / 60).toFixed(1), 'h', '占累计时长 ' + (mins ? Math.round(pt.minutes / mins * 100) : 0) + '%') +
+      statCard('日均番茄', (pt.count / busyDays).toFixed(1), '个', '只在有记录的天里算') +
+    '</div>';
+  }
+
   html += '<div class="card heat-card" style="margin-bottom:14px">' +
     '<div class="heat-head"><h3>打卡热力</h3><span style="font-size:11.5px;color:var(--ink3)">最近 13 周</span><div class="grow"></div>' +
     '<div class="heat-legend">少<i style="background:#eee9dd"></i><i style="background:#cfe0ee"></i><i style="background:#9dbdd7"></i><i style="background:#6a94b8"></i><i style="background:#2b4a6b"></i>多</div></div>' +
@@ -803,7 +823,8 @@ function closeModal() { document.getElementById('mask').classList.remove('on'); 
 /* --- 打卡 --- */
 function openCheckin() {
   const today = todayStr();
-  const ck = S.checkins[today] || { minutes: 60, mood: 'ok', note: '' };
+  const pm = (typeof pomoToday === 'function') ? pomoToday(false) : { minutes: 0, count: 0 };
+  const ck = S.checkins[today] || { minutes: pm.minutes > 0 ? pm.minutes : 60, mood: 'ok', note: '' };
   const mins = [30, 60, 90, 120, 180, 240];
   openModal('<div class="m-head"><h3>' + (S.checkins[today] ? '修改 ' : '') + '今日打卡</h3>' +
     '<button class="icon-btn" onclick="closeModal()">' + ico('x') + '</button></div>' +
@@ -816,6 +837,7 @@ function openCheckin() {
           '<input class="input" id="ckMin" type="number" min="0" max="900" value="' + ck.minutes + '" style="width:110px">' +
           '<span style="font-size:12px;color:var(--ink3)">分钟，可自己填</span>' +
         '</div>' +
+        (pm.count > 0 ? '<div class="hint" style="margin-top:7px;color:var(--green)">番茄钟今天记了 ' + pm.count + ' 个 · ' + pm.minutes + ' 分钟，已自动填好</div>' : '') +
       '</div>' +
       '<div class="field"><label>今天状态</label><div class="mood-row" id="moodRow">' +
         MOODS.map(function (m) {
