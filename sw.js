@@ -1,5 +1,5 @@
 /* 离线缓存：优先取网络（保证更新），断网时回落到缓存 */
-const CACHE = 'gk-review-v3';
+const CACHE = 'gk-review-v4';
 const PRECACHE = [
   './',
   './index.html',
